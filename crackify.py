@@ -113,8 +113,21 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
     
     # Push to new remote if requested
     if push_url:
-        print(f"Pushing to new remote: {push_url}")
-        repo.create_remote('origin', push_url)
+        # Extract repo name from push URL
+        repo_name = push_url.split('/')[-1].replace('.git', '')
+        
+        # Get GitHub token
+        token = get_git_config('github.token')
+        if not token:
+            raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
+            
+        # Create the repository on GitHub
+        print(f"Creating new repository {repo_name} on GitHub...")
+        actual_push_url = create_github_repo(repo_name, token)
+        
+        # Push to the new remote
+        print(f"Pushing to new remote: {actual_push_url}")
+        repo.create_remote('origin', actual_push_url)
         repo.git.push('origin', '--force', '--all')
         repo.git.push('origin', '--force', '--tags')
         print("Push complete! All branches and tags pushed to new remote.")
@@ -142,7 +155,7 @@ if __name__ == "__main__":
         if not args.email:
             raise Exception("No --email provided and git config user.email not set")
             
-    # Generate push URL if not provided
+    # Prepare push URL if not provided
     if not args.push_url:
         username = get_git_config('github.user') or get_git_config('user.name')
         if not username:
@@ -158,9 +171,8 @@ if __name__ == "__main__":
         if not token:
             raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
             
-        # Create repository on GitHub
-        print(f"Creating new repository {repo_name} on GitHub...")
-        args.push_url = create_github_repo(repo_name, token)
+        # Generate the push URL but don't create the repo yet
+        args.push_url = f"git@github.com:{username}/{repo_name}.git"
 
     rebase_repo(
         repo_url=args.url,
