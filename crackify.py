@@ -125,7 +125,7 @@ if __name__ == "__main__":
         if repo_name.endswith('.git'):
             repo_name = repo_name[:-4]
             
-        args.push_url = f"https://github.com/{username}/{repo_name}.git"
+        args.push_url = f"git@github.com:{username}/{repo_name}.git"
 
     rebase_repo(
         repo_url=args.url,
