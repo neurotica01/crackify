@@ -50,98 +50,84 @@ def create_github_repo(repo_name, token):
         raise Exception(f"Failed to create repository: {response.json().get('message', 'Unknown error')}")
     return response.json()['ssh_url']
 
-def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=None):
-    """Rebase repository with new author info and redistributed dates"""
-    # Clone the repo
+def clone_and_prepare_repo(repo_url: str, output_dir: str, push_url: str = None) -> git.Repo:
+    """Clone repository and prepare for rebasing"""
     print(f"Cloning {repo_url}...")
     repo = git.Repo.clone_from(repo_url, output_dir)
     
-    # Remove old origin if we're pushing to a new URL
     if push_url:
         repo.delete_remote('origin')
-    
-    # Try common branch names
+    return repo
+
+def get_main_branch_commits(repo: git.Repo) -> list:
+    """Get commits from the main branch"""
     branch_names = ['main', 'master', 'stable']
-    commits = []
-    
     for branch in branch_names:
         try:
             commits = list(repo.iter_commits(branch))
             print(f"Using branch: {branch}")
-            break
+            return commits
         except git.exc.GitCommandError:
             continue
-            
-    if not commits:
-        raise Exception("Could not find any of the standard branches (main, master, stable)")
-    
-    # Generate new dates for all commits
+    raise Exception("Could not find any of the standard branches (main, master, stable)")
+
+def create_rebased_commits(repo: git.Repo, commits: list, new_name: str, new_email: str) -> None:
+    """Create new commits with updated author info and dates"""
     commit_dates = sorted([get_weighted_date() for _ in commits])
-    
-    # Create new branch for rebased commits
     repo.git.checkout('--orphan', 'rebased')
     
-    # Create new commits with updated author info and dates
-    print("Creating new commits...")
     for i, commit in enumerate(commits):
-        # Create new commit message
-        message = commit.message
-        
-        # Create new commit with updated author info and date
         new_date = commit_dates[i]
         env = os.environ.copy()
         env['GIT_AUTHOR_DATE'] = new_date.isoformat()
         env['GIT_COMMITTER_DATE'] = new_date.isoformat()
         
-        # Reset to the original commit state
         repo.git.read_tree(commit.hexsha)
         repo.git.checkout_index('-a', '-f')
-        
-        # Add all files to the index
         repo.git.add('--all')
         
-        # Check if there are any changes to commit
         if repo.git.status('--porcelain'):
-            # Create new commit only if there are changes
             repo.git.commit(
-                '-m', message,
+                '-m', commit.message,
                 author=f"{new_name} <{new_email}>",
                 env=env
             )
         else:
-            # If no changes, just create an empty commit
             repo.git.commit(
                 '--allow-empty',
-                '-m', message,
+                '-m', commit.message,
                 author=f"{new_name} <{new_email}>",
                 env=env
             )
+
+def push_to_new_remote(repo: git.Repo, push_url: str) -> None:
+    """Push rebased repository to new remote"""
+    repo_name = push_url.split('/')[-1].replace('.git', '')
+    token = get_git_config('github.token')
+    if not token:
+        raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
+    
+    print(f"Creating new repository {repo_name} on GitHub...")
+    actual_push_url = create_github_repo(repo_name, token)
+    
+    print(f"Pushing to new remote: {actual_push_url}")
+    repo.create_remote('origin', actual_push_url)
+    repo.git.push('origin', '--force', '--all')
+    repo.git.push('origin', '--force', '--tags')
+    print("Push complete! All branches and tags pushed to new remote.")
+
+def rebase_repo(repo_url: str, output_dir: str, new_name: str, new_email: str, push_url: str = None) -> None:
+    """Rebase repository with new author info and redistributed dates"""
+    repo = clone_and_prepare_repo(repo_url, output_dir, push_url)
+    commits = get_main_branch_commits(repo)
+    create_rebased_commits(repo, commits, new_name, new_email)
     
     # Move rebased branch to main
     repo.git.branch('-M', 'rebased', 'main')
-    
     print(f"Rebase complete! Repository saved to {output_dir}")
     
-    # Push to new remote if requested
     if push_url:
-        # Extract repo name from push URL
-        repo_name = push_url.split('/')[-1].replace('.git', '')
-        
-        # Get GitHub token
-        token = get_git_config('github.token')
-        if not token:
-            raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
-            
-        # Create the repository on GitHub
-        print(f"Creating new repository {repo_name} on GitHub...")
-        actual_push_url = create_github_repo(repo_name, token)
-        
-        # Push to the new remote
-        print(f"Pushing to new remote: {actual_push_url}")
-        repo.create_remote('origin', actual_push_url)
-        repo.git.push('origin', '--force', '--all')
-        repo.git.push('origin', '--force', '--tags')
-        print("Push complete! All branches and tags pushed to new remote.")
+        push_to_new_remote(repo, push_url)
 
 if __name__ == "__main__":
     import argparse
