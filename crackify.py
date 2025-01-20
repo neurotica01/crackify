@@ -31,8 +31,20 @@ def rebase_repo(repo_url, output_dir, new_name, new_email):
     print(f"Cloning {repo_url}...")
     repo = git.Repo.clone_from(repo_url, output_dir)
     
-    # Get all commits
-    commits = list(repo.iter_commits('master'))
+    # Try common branch names
+    branch_names = ['main', 'master', 'stable']
+    commits = []
+    
+    for branch in branch_names:
+        try:
+            commits = list(repo.iter_commits(branch))
+            print(f"Using branch: {branch}")
+            break
+        except git.exc.GitCommandError:
+            continue
+            
+    if not commits:
+        raise Exception("Could not find any of the standard branches (main, master, stable)")
     
     # Generate new dates for all commits
     commit_dates = sorted([get_weighted_date() for _ in commits])
