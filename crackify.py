@@ -96,6 +96,9 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         # Add all files from the original commit
         repo.git.checkout(commit.hexsha, '--', '.')
         
+        # Stage all changes
+        repo.git.add('--all')
+        
         # Create new commit
         repo.git.commit(
             '-m', message,
