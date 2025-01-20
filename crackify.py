@@ -78,8 +78,11 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
     # Generate new dates for all commits
     commit_dates = sorted([get_weighted_date() for _ in commits])
     
+    # Create new branch for rebased commits
+    repo.git.checkout('--orphan', 'rebased')
+    
     # Create new commits with updated author info and dates
-    print("Rebasing commits...")
+    print("Creating new commits...")
     for i, commit in enumerate(commits):
         # Create new commit message
         message = commit.message
@@ -90,13 +93,18 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         env['GIT_AUTHOR_DATE'] = new_date.isoformat()
         env['GIT_COMMITTER_DATE'] = new_date.isoformat()
         
+        # Add all files from the original commit
+        repo.git.checkout(commit.hexsha, '--', '.')
+        
         # Create new commit
         repo.git.commit(
-            '--amend',
-            '--no-edit',
+            '-m', message,
             author=f"{new_name} <{new_email}>",
             env=env
         )
+    
+    # Move rebased branch to main
+    repo.git.branch('-M', 'rebased', 'main')
     
     print(f"Rebase complete! Repository saved to {output_dir}")
     
