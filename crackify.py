@@ -93,17 +93,15 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         env['GIT_AUTHOR_DATE'] = new_date.isoformat()
         env['GIT_COMMITTER_DATE'] = new_date.isoformat()
         
-        # Add all files from the original commit
-        repo.git.checkout(commit.hexsha, '--', '.')
+        # Reset to the original commit state
+        repo.git.read_tree(commit.hexsha)
         
-        # Stage all changes
-        repo.git.add('--all')
-        
-        # Create new commit
+        # Create new commit with the tree from the original commit
         repo.git.commit(
             '-m', message,
             author=f"{new_name} <{new_email}>",
-            env=env
+            env=env,
+            tree=commit.hexsha
         )
     
     # Move rebased branch to main
