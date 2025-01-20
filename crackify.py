@@ -100,12 +100,22 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         # Add all files to the index
         repo.git.add('--all')
         
-        # Create new commit
-        repo.git.commit(
-            '-m', message,
-            author=f"{new_name} <{new_email}>",
-            env=env
-        )
+        # Check if there are any changes to commit
+        if repo.git.status('--porcelain'):
+            # Create new commit only if there are changes
+            repo.git.commit(
+                '-m', message,
+                author=f"{new_name} <{new_email}>",
+                env=env
+            )
+        else:
+            # If no changes, just create an empty commit
+            repo.git.commit(
+                '--allow-empty',
+                '-m', message,
+                author=f"{new_name} <{new_email}>",
+                env=env
+            )
     
     # Move rebased branch to main
     repo.git.branch('-M', 'rebased', 'main')
