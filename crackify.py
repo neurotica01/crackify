@@ -97,6 +97,9 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         repo.git.read_tree(commit.hexsha)
         repo.git.checkout_index('-a', '-f')
         
+        # Add all files to the index
+        repo.git.add('--all')
+        
         # Create new commit
         repo.git.commit(
             '-m', message,
