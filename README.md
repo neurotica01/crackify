@@ -1,5 +1,7 @@
 # crackify
 
+![Screenshot 2025-01-20 114123](https://github.com/user-attachments/assets/a6397539-d6f5-4bb2-8853-d8b31ac603be)
+
 Fertilizer for your github profile
 
 > a saturday morning test drive with aider.chat
