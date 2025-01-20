@@ -1,6 +1,8 @@
 # crackify
 
-make your git history look like you actually work. because apparently commit streaks matter more than actual code.
+Fertilizer for your github profile
+
+> a saturday morning test drive with aider.chat
 
 ## install
 
@@ -15,15 +17,16 @@ python crackify.py <repo_url> <output_dir> [options]
 ```
 
 ### what it does
-- clones your too-clean repo
+- clones the actually impressive repo
 - rewrites commits with new author info
 - spreads commits with "natural" timestamps
-- (optional) pushes to new remote
+- by default, pushes to new remote. this needs a github token to create the new repo if not exists.
 
 ### options
-- `--name`: who you wanna be today
-- `--email`: your new fake email
-- `--push-url`: where to push your fake history
-- `--token`: github token (they don't trust you)
+should just work out of the box if `git config --global user.name`, `git config --global user.email`, and `git config --global user.date` are set.
 
-> warning: this won't make you better at coding. it just makes you look busy. use at your own risk.
+- `--name`: who you wanna be today
+- `--email`: email
+- `--push-url`: where to push your fake history
+- `--token`: github token 
+
