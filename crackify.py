@@ -3,6 +3,7 @@ import random
 from datetime import datetime, timedelta
 from faker import Faker
 import os
+import subprocess
 from collections import defaultdict
 
 def get_weighted_date():
@@ -25,7 +26,14 @@ def get_weighted_date():
     
     return date
 
-def rebase_repo(repo_url, output_dir, new_name, new_email, push_url=None):
+def get_git_config(key):
+    """Get a git config value"""
+    try:
+        return subprocess.check_output(['git', 'config', '--global', key]).decode().strip()
+    except subprocess.CalledProcessError:
+        return None
+
+def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=None):
     """Rebase repository with new author info and redistributed dates"""
     # Clone the repo
     print(f"Cloning {repo_url}...")
@@ -89,12 +97,36 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rebase a GitHub repository with new author info and natural-looking commit dates")
     parser.add_argument('url', help='GitHub repository URL')
     parser.add_argument('output_dir', help='Output directory for cloned repository')
-    parser.add_argument('--name', required=True, help='New author name')
-    parser.add_argument('--email', required=True, help='New author email')
+    parser.add_argument('--name', help='New author name (default: git config user.name)')
+    parser.add_argument('--email', help='New author email (default: git config user.email)')
     parser.add_argument('--push-url', help='URL to push the rebased repository to')
     
     args = parser.parse_args()
     
+    # Get default values from git config
+    if not args.name:
+        args.name = get_git_config('user.name')
+        if not args.name:
+            raise Exception("No --name provided and git config user.name not set")
+            
+    if not args.email:
+        args.email = get_git_config('user.email')
+        if not args.email:
+            raise Exception("No --email provided and git config user.email not set")
+            
+    # Generate push URL if not provided
+    if not args.push_url:
+        username = get_git_config('github.user') or get_git_config('user.name')
+        if not username:
+            raise Exception("Could not determine GitHub username")
+            
+        # Extract repo name from URL
+        repo_name = args.url.rstrip('/').split('/')[-1]
+        if repo_name.endswith('.git'):
+            repo_name = repo_name[:-4]
+            
+        args.push_url = f"https://github.com/{username}/{repo_name}.git"
+
     rebase_repo(
         repo_url=args.url,
         output_dir=args.output_dir,
