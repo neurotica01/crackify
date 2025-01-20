@@ -5,6 +5,7 @@ from faker import Faker
 import os
 import subprocess
 from collections import defaultdict
+import requests
 
 def get_weighted_date():
     """Generate a random date in the past year with weekend/evening bias"""
@@ -32,6 +33,22 @@ def get_git_config(key):
         return subprocess.check_output(['git', 'config', '--global', key]).decode().strip()
     except subprocess.CalledProcessError:
         return None
+
+def create_github_repo(repo_name, token):
+    """Create a new repository on GitHub"""
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    data = {
+        "name": repo_name,
+        "private": False,
+        "auto_init": False
+    }
+    response = requests.post("https://api.github.com/user/repos", json=data, headers=headers)
+    if response.status_code != 201:
+        raise Exception(f"Failed to create repository: {response.json().get('message', 'Unknown error')}")
+    return response.json()['ssh_url']
 
 def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=None):
     """Rebase repository with new author info and redistributed dates"""
@@ -125,7 +142,14 @@ if __name__ == "__main__":
         if repo_name.endswith('.git'):
             repo_name = repo_name[:-4]
             
-        args.push_url = f"git@github.com:{username}/{repo_name}.git"
+        # Get GitHub token
+        token = get_git_config('github.token')
+        if not token:
+            raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
+            
+        # Create repository on GitHub
+        print(f"Creating new repository {repo_name} on GitHub...")
+        args.push_url = create_github_repo(repo_name, token)
 
     rebase_repo(
         repo_url=args.url,
