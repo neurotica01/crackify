@@ -100,12 +100,12 @@ def create_rebased_commits(repo: git.Repo, commits: list, new_name: str, new_ema
                 env=env
             )
 
-def push_to_new_remote(repo: git.Repo, push_url: str) -> None:
+def push_to_new_remote(repo: git.Repo, push_url: str, token: str = None) -> None:
     """Push rebased repository to new remote"""
     repo_name = push_url.split('/')[-1].replace('.git', '')
-    token = get_git_config('github.token')
+    token = token or get_git_config('github.token')
     if not token:
-        raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
+        raise Exception("GitHub token not found. Please provide --token or set with: git config --global github.token YOUR_TOKEN")
     
     print(f"Creating new repository {repo_name} on GitHub...")
     actual_push_url = create_github_repo(repo_name, token)
@@ -127,7 +127,7 @@ def rebase_repo(repo_url: str, output_dir: str, new_name: str, new_email: str, p
     print(f"Rebase complete! Repository saved to {output_dir}")
     
     if push_url:
-        push_to_new_remote(repo, push_url)
+        push_to_new_remote(repo, push_url, args.token)
 
 if __name__ == "__main__":
     import argparse
@@ -138,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument('--name', help='New author name (default: git config user.name)')
     parser.add_argument('--email', help='New author email (default: git config user.email)')
     parser.add_argument('--push-url', help='URL to push the rebased repository to')
+    parser.add_argument('--token', help='GitHub token (default: git config github.token)')
     
     args = parser.parse_args()
     
@@ -164,9 +165,9 @@ if __name__ == "__main__":
             repo_name = repo_name[:-4]
             
         # Get GitHub token
-        token = get_git_config('github.token')
+        token = args.token or get_git_config('github.token')
         if not token:
-            raise Exception("GitHub token not found. Please set with: git config --global github.token YOUR_TOKEN")
+            raise Exception("GitHub token not found. Please provide --token or set with: git config --global github.token YOUR_TOKEN")
             
         # Generate the push URL but don't create the repo yet
         args.push_url = f"git@github.com:{username}/{repo_name}.git"
