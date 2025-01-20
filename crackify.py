@@ -25,11 +25,15 @@ def get_weighted_date():
     
     return date
 
-def rebase_repo(repo_url, output_dir, new_name, new_email):
+def rebase_repo(repo_url, output_dir, new_name, new_email, push_url=None):
     """Rebase repository with new author info and redistributed dates"""
     # Clone the repo
     print(f"Cloning {repo_url}...")
     repo = git.Repo.clone_from(repo_url, output_dir)
+    
+    # Remove old origin if we're pushing to a new URL
+    if push_url:
+        repo.delete_remote('origin')
     
     # Try common branch names
     branch_names = ['main', 'master', 'stable']
@@ -70,6 +74,14 @@ def rebase_repo(repo_url, output_dir, new_name, new_email):
         )
     
     print(f"Rebase complete! Repository saved to {output_dir}")
+    
+    # Push to new remote if requested
+    if push_url:
+        print(f"Pushing to new remote: {push_url}")
+        repo.create_remote('origin', push_url)
+        repo.git.push('origin', '--force', '--all')
+        repo.git.push('origin', '--force', '--tags')
+        print("Push complete! All branches and tags pushed to new remote.")
 
 if __name__ == "__main__":
     import argparse
@@ -79,6 +91,7 @@ if __name__ == "__main__":
     parser.add_argument('output_dir', help='Output directory for cloned repository')
     parser.add_argument('--name', required=True, help='New author name')
     parser.add_argument('--email', required=True, help='New author email')
+    parser.add_argument('--push-url', help='URL to push the rebased repository to')
     
     args = parser.parse_args()
     
@@ -86,5 +99,6 @@ if __name__ == "__main__":
         repo_url=args.url,
         output_dir=args.output_dir,
         new_name=args.name,
-        new_email=args.email
+        new_email=args.email,
+        push_url=args.push_url
     )
