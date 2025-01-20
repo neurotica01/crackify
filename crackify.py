@@ -95,13 +95,13 @@ def rebase_repo(repo_url, output_dir, new_name=None, new_email=None, push_url=No
         
         # Reset to the original commit state
         repo.git.read_tree(commit.hexsha)
+        repo.git.checkout_index('-a', '-f')
         
-        # Create new commit with the tree from the original commit
+        # Create new commit
         repo.git.commit(
             '-m', message,
             author=f"{new_name} <{new_email}>",
-            env=env,
-            tree=commit.hexsha
+            env=env
         )
     
     # Move rebased branch to main
